@@ -9,6 +9,7 @@ from txredisapi import lazyConnectionPool
 from scrapy import signals
 from twisted.internet import defer
 from .connection import BaseMiddlewareClass
+from .mysignals import (item_saved, item_saved_failed)
 
 class MyCustomRedisSpiderPipeline(object):
 	"""
@@ -23,13 +24,14 @@ class MyCustomRedisSpiderPipeline(object):
 
 	异步执行redis操作
 	"""
-	def __init__(self, **redis):
+	def __init__(self, crawler, redis):
+		self.crawler = crawler
 		#https://github.com/fiorix/txredisapi
 		self.redis = redis
 
 	@classmethod
 	def from_crawler(cls, crawler):
-		return cls(crawler.settings.get('TWISTED_REDIS_CONFIG'))
+		return cls(crawler, crawler.settings.get('TWISTED_REDIS_CONFIG'))
 		
 	@defer.inlineCallbacks
 	def open_spider(self, spider):
@@ -39,23 +41,37 @@ class MyCustomRedisSpiderPipeline(object):
 		self.rc = yield lazyConnectionPool(**self.redis)
 
 	@defer.inlineCallbacks
-    def process_item(self, item, spider):
-    	#所有的操作都是异步的，即都是使用yield,因此都需要用装饰器包装
-    	yield self.rc.push('item', item)
-    	#do something
-        return item
+    	def process_item(self, item, spider):
+    		#所有的操作都是异步的，即都是使用yield,因此都需要用装饰器包装
+    		yield self.rc.push('item', item)
+    		#do something
+       		yield item
 
-    @defer.inlineCallbacks
-    def close_spider(self, spider):
-    	yield self.rc.disconnect()
+    	@defer.inlineCallbacks
+    	def close_spider(self, spider):
+    		yield self.rc.disconnect()
 
 
 #异步执行数据库操作的管道
 class MyCustomMySQLPipeline(BaseMiddlewareClass):
+	
+	@classmethod
+	def from_crawler(cls, crawler):
+		instance = super(MyCustomMySQLPipeline, cls).from_crawler(crawler)
+		instance.crawler = crawler
+		return instance
 
 	def process_item(self, item, spider):
-		self.insert(item).addCallback(callback)
-		return item
+		try:
+			self.insert(item).addCallback(callback)
+		except:
+			self.crawler.signals.send_catch_log(item_saved_failed,
+				                                               spider=spider)
+		else:
+			self.crawler.signals.send_catch_log(item_saved,
+															   spider=spider)
+		finally:
+			return item
 
 	def insert(self, item):
 		cmd = 'INSERT INTO [tablename] (fieldname) VALUES (???)'

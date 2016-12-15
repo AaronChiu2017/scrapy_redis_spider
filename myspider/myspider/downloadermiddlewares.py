@@ -10,9 +10,9 @@ from scrapy.exceptions import IgnoreRequest
 from twisted.internet.error import DNSLookupError
 from twisted.internet.error import TimeoutError
 from twisted.internet.error import TCPTimedOutError
-from twisted.enterprise import adbapi
 from . import html
 from .connection import BaseMiddlewareClass
+from .mysignals import (timeouterror, dnslookuperror)
 
 class MyCustomHeadersDownLoadMiddleware(object):
 
@@ -21,7 +21,7 @@ class MyCustomHeadersDownLoadMiddleware(object):
 
 	@classmethod
 	def from_crawler(cls, crawler, *args, **kwargs):
-		returne cls(crawler.settings.get('MY_USER_AGENT'))
+		return cls(crawler.settings.get('MY_USER_AGENT'))
 				
 	def process_request(self, request, spider):
 		#随机选择一个user-agent
@@ -89,14 +89,27 @@ class MyProcessResponseDownloadMiddleware(object):
 class MyProcessExceptionDownloadMiddleware(object):
 	"""
 	处理下载器下载response时引发的异常
+
 	"""
+	def __init__(self, crawler):
+		self.crawler = crawler
+
+	@classmethod
+	def from_crawler(cls, crawler):
+		return cls(crawler)
+		
 	def process_exception(self, request, exception, spider):
 		#这个方法可以处理的异常来自于下载器下载request时引发的异常
 		#或者是其他下载中间件引发的异常
 
 		#如果在下载器下载的时候引发了下列的异常，就重新返回这个请求，后面继续下载
-		if isinstance(exception, (DNSLookupError, TimeoutError, TCPTimedOutError)):
-			return request
+		if isinstance(exception, DNSLookupError):			
+			self.crawler.signals.send_catch_log(dnslookuperror, spider=spider)
+
+		if isinstance(exception, (TimeoutError, TCPTimedOutError)):			
+			self.crawler.signals.send_catch_log(timeouterror, spider=spider)
+		
+		return request
 
 
 class MyCustomFindCacheDownloadMiddleware(BaseMiddlewareClass):

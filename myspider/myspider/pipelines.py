@@ -41,35 +41,31 @@ class MyCustomRedisSpiderPipeline(object):
 		self.rc = yield lazyConnectionPool(**self.redis)
 
 	@defer.inlineCallbacks
-    	def process_item(self, item, spider):
-    		#所有的操作都是异步的，即都是使用yield,因此都需要用装饰器包装
-    		yield self.rc.push('item', item)
-    		#do something
-       		yield item
+    def process_item(self, item, spider):
+    	#所有的操作都是异步的，即都是使用yield,因此都需要用装饰器包装
+    	yield self.rc.push('item', item)
+    	#do something
+        yield item
 
-    	@defer.inlineCallbacks
-    	def close_spider(self, spider):
-    		yield self.rc.disconnect()
+    @defer.inlineCallbacks
+    def close_spider(self, spider):
+    	yield self.rc.disconnect()
 
 
 #异步执行数据库操作的管道
 class MyCustomMySQLPipeline(BaseMiddlewareClass):
-	
-	@classmethod
-	def from_crawler(cls, crawler):
-		instance = super(MyCustomMySQLPipeline, cls).from_crawler(crawler)
-		instance.crawler = crawler
-		return instance
+	#python2.7中使用yield的函数，就不允许使用return
+	#所以在2.7中发送信号就使用send_catch_log()
 
 	def process_item(self, item, spider):
 		try:
 			self.insert(item).addCallback(callback)
 		except:
-			self.crawler.signals.send_catch_log(item_saved_failed,
-				                                               spider=spider)
+			 self.crawler.signals.send_catch_log(item_saved_failed,
+				                                 spider=spider)
 		else:
-			self.crawler.signals.send_catch_log(item_saved,
-															   spider=spider)
+			 self.crawler.signals.send_catch_log(item_saved,
+											     spider=spider)
 		finally:
 			return item
 

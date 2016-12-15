@@ -56,12 +56,12 @@ class RedisPool(redis.StrictRedis):
 #####################################################################
 #用于需要进行mysql数据库异步非阻塞操作的基类
 class BaseMiddlewareClass(object):
-	def __init__(self, **config):
+	def __init__(self, config):
 		self.config = config						
 
 	@classmethod
-	def from_clawer(cls, crawler, *args, **kwargs):
-		middleware = cls(**crawler.settings.get('TWISTED_MYSQL_CONFIG'))
+	def from_crawler(cls, crawler):
+		middleware = cls(crawler.settings.get('TWISTED_MYSQL_CONFIG'))
 		return middleware
 
 	def open_spider(self, spider):

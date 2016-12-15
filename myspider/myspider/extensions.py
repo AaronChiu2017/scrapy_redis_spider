@@ -1,7 +1,8 @@
 #-*-coding:utf-8-*-
-
+from pprint import pprint
 from scrapy import signals
 from twisted.internet import task
+from datetime import datetime
 from . import mysignals
 
 class MyCustomExtension(object):
@@ -32,6 +33,10 @@ class MyCustomExtension(object):
 								signal=mysignals.html_saved)
 		crawler.signals.connect(instance.html_saved_failed,
 								signal=mysignals.html_saved_failed)
+		crawler.signals.connect(instance.timeouterror,
+			                    signal=mysignals.timeouterror)
+		crawler.signals.connect(instance.dnslookuperror,
+								signal=mysignals.dnslookuperror)
 		return instance
 
 	def item_dropped(self, item, spider):
@@ -62,6 +67,12 @@ class MyCustomExtension(object):
 	def html_saved_failed(self, spider):
 		self.stats.inc_value('html_saved/failed', spider=spider)
 
+	def timeouterror(self, spider):
+		self.stats.inc_value('twisted/timeouterror', spider=spider)
+
+	def dnslookuperror(self, spider):
+		self.stats.inc_value('twisted/dnslookuperror', spider=spider)
+
 
 class MyCustomStatsExtension(object):
 	"""
@@ -90,6 +101,7 @@ class MyCustomStatsExtension(object):
 		#这里收集stats并写入相关的储存。
 		#目前是输出到终端展示出来
 		print u'将展示收集到的数据'
-		print self.stats.get_stats()
+		self.stats.set_value('now', datetime.now())
+		pprint(self.stats.get_stats(), depth=2)
 
 

@@ -10,3 +10,9 @@ item_saved_failed = object()
 html_saved = object()
 #html存储到数据库失败就发送这个信号
 html_saved_failed = object()
+
+timeouterror = object()
+
+dnslookuperror = object()
+
+exceptions = object()

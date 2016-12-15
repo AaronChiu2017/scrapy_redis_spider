@@ -21,19 +21,19 @@ class MyspiderItem(scrapy.Item):
     #关于这里使用的输入输出处理器，建议最好配合mapcompose一起使用
     #首先调用scrapy内建的输入输出处理器函数，然后在调用自定义的函数
     #这样就可以得到较为精准的数据
-    movie_name = scrapy.Field(input_processor=Compose(TakeFirst, ),
-    					  output_processor=Compose(Join,),)
+    movie_name = scrapy.Field(input_processor=Compose(TakeFirst()),
+    					  output_processor=Compose(Join()),)
 
-    movie_type = scrapy.Field(input_processor=Compose(TakeFirst, ),
-    					  output_processor=Compose(Join, ),)
+    movie_type = scrapy.Field(input_processor=Compose(TakeFirst()),
+    					  output_processor=Compose(Join()),)
 
-    movie_rate = scrapy.Field(input_processor=Compose(TakeFirst, ),
-    					  output_processor=Compose(Join, ),)
+    movie_rate = scrapy.Field(input_processor=Compose(TakeFirst()),
+    					  output_processor=Compose(Join()),)
 
-    movie_year = scrapy.Field(input_processor=Compose(TakeFirst, ),
-    					  output_processor=Compose(Join, ),)
+    movie_year = scrapy.Field(input_processor=Compose(TakeFirst()),
+    					  output_processor=Compose(Join()),)
 
-    url = scrapy.Field(output_processor=Compose(Join, ))
+    url = scrapy.Field(output_processor=Compose(Join()))
 
 
 class LinkLoader(object):

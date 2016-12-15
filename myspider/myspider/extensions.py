@@ -2,6 +2,7 @@
 
 from scrapy import signals
 from twisted.internet import task
+from . import mysignals
 
 class MyCustomExtension(object):
 	#结合signals, 可以使用extension来定义和收集scrapy的stats
@@ -23,6 +24,14 @@ class MyCustomExtension(object):
 								signal=signals.response_received)
 		crawler.signals.connect(instance.response_downloaded, 
 								signal=signals.response_downloaded)
+		crawler.signals.connect(instance.item_saved,
+								signal=mysignals.item_saved)
+		crawler.signals.connect(instance.item_saved_failed,
+								signal=mysignals.item_saved_failed)
+		crawler.signals.connect(instance.html_saved,
+								signal=mysignals.html_saved)
+		crawler.signals.connect(instance.html_saved_failed,
+								signal=mysignals.html_saved_failed)
 		return instance
 
 	def item_dropped(self, item, spider):
@@ -41,6 +50,18 @@ class MyCustomExtension(object):
 		#接受下载器成功下载一个response时发送的信号		
 		self.stats.inc_value('response/downloaded', spider=spider)
 
+	def item_saved(self, spider):
+		self.stats.inc_value('item/saved', spider=spider)
+
+	def item_saved_failed(self, spider):
+		self.stats.inc_value('item_saved/failed', spider=spider)
+
+	def html_saved(self, spider):
+		self.stats.inc_value('html/saved', spider=spider)
+
+	def html_saved_failed(self, spider):
+		self.stats.inc_value('html_saved/failed', spider=spider)
+
 
 class MyCustomStatsExtension(object):
 	"""
@@ -52,13 +73,16 @@ class MyCustomStatsExtension(object):
 
 	@classmethod
 	def from_crawler(cls, crawler, *args, **kwargs):
-		return cls(crawler.stats)
+		instance = cls(crawler.stats)
+		crawler.signals.connect(instance.opened_spider, signal=signals.spider_opened)
+		crawler.signals.connect(instance.closed_spider, signal=signals.spider_closed)
+		return instance
 		
-	def open_spider(self):
+	def opened_spider(self):
 		self.tsk = task.LoopingCall(self.collect)
 		self.tsk.start(self.time, now=True)
 
-	def close_spider(self):		
+	def closed_spider(self):		
 		if self.tsk.running:
 			self.tsk.stop()
 

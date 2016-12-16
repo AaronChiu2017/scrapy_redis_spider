@@ -152,7 +152,7 @@ AUTOTHROTTLE_MAX_DELAY = 10
 # each remote server
 AUTOTHROTTLE_TARGET_CONCURRENCY = 3.0
 # Enable showing throttling stats for every response received:
-AUTOTHROTTLE_DEBUG = True
+AUTOTHROTTLE_DEBUG = False
 
 #scrapy-redis setting
 ######################################################################################################################
@@ -184,9 +184,9 @@ SCHEDULER_QUEUE_CLASS = 'scrapy_redis.queue.SpiderPriorityQueue'
 ITEM_PIPELINES = {
 	#scrapy_redis管道是把提取到的item放到redis的item队列中
     #所以需要另外编写一个脚本从这个队列中获取item
-    'scrapy_redis.pipelines.RedisPipeline': 300
-    #'myspider.pipelines.MyCustomSpiderPipeline': 100
-}
+    'scrapy_redis.pipelines.RedisPipeline': 300,
+    #'myspider.pipelines.MyCustomMySQLPipeline': 100,
+    }
 
 # The item pipeline serializes and stores the items in this redis key.
 #这等于spider.name:items.在这个spider中，存储item的redis队列的名字叫做："static_html:items"
@@ -277,8 +277,8 @@ LOG_STDOUT = False
 TWISTED_MYSQL_CONFIG = {'dbapiName': 'MySQLdb',
                         'db': 'douban',
                         'host': '127.0.0.1',
-                        'port': '3306',
-                        'passwd': 'lymlhhj123',
+                        'port': 3306,
+                        'passwd': 'mplhlyml123',
                         'user': 'root',
                         'cp_reconnect': True,}
 

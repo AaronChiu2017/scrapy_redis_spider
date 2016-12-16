@@ -2,6 +2,7 @@
 import redis
 import pymysql
 import sqlalchemy
+from scrapy import signals
 from twisted.enterprise import adbapi
 
 class MySQL(object):
@@ -55,17 +56,21 @@ class RedisPool(redis.StrictRedis):
 
 #####################################################################
 #用于需要进行mysql数据库异步非阻塞操作的基类
-class BaseMiddlewareClass(object):
-	def __init__(self, config):
-		self.config = config						
+class BaseAsyncMySQL(object):
+
+	def __init__(self, crawler, config):
+		self.crawler = crawler
+		self.config = config
 
 	@classmethod
 	def from_crawler(cls, crawler):
-		middleware = cls(crawler.settings.get('TWISTED_MYSQL_CONFIG'))
-		return middleware
+		instance = cls(crawler, crawler.settings.get('TWISTED_MYSQL_CONFIG'))
+		crawler.signals.connect(instance.opened_spider, signal=signals.spider_opened)
+		crawler.signals.connect(instance.closed_spider, signal=signals.spider_closed)
+		return instance
+		
+	def opened_spider(self, spider):
+		self.db = adbapi.ConnectionPool(**self.config)
 
-	def open_spider(self, spider):
-		self.db = adbapi.Connectionpool(**self.config)
-
-	def close_spider(self, spider):
+	def closed_spider(self, spider):
 		self.db.close()

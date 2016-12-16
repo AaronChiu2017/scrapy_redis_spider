@@ -11,7 +11,7 @@ from twisted.internet.error import DNSLookupError
 from twisted.internet.error import TimeoutError
 from twisted.internet.error import TCPTimedOutError
 from . import html
-from .connection import BaseMiddlewareClass
+from .connection import BaseAsyncMySQL
 from .mysignals import (timeouterror, dnslookuperror)
 
 class MyCustomHeadersDownLoadMiddleware(object):
@@ -53,6 +53,7 @@ class MyProcessResponseDownloadMiddleware(object):
 		#处理下载完成的response
 		http_code = response.status
 		if http_code // 100 == 2:
+			self.stats.inc_value('response/%d'%http_code, spider=spider)
 			return response
 
 		#排除状态码不是304的所有以3为开头的响应
@@ -112,7 +113,7 @@ class MyProcessExceptionDownloadMiddleware(object):
 		return request
 
 
-class MyCustomFindCacheDownloadMiddleware(BaseMiddlewareClass):
+class MyCustomFindCacheDownloadMiddleware(BaseAsyncMySQL):
 	"""
 	查找数据库缓存,如果查找到了就忽视这个request
 	使用适用于twisted的异步的数据库查询，具体参考
@@ -123,7 +124,7 @@ class MyCustomFindCacheDownloadMiddleware(BaseMiddlewareClass):
 		self.fetch(request.url).addCallback(self.callback)
 
 	def fetch(self, url):
-		cmd = 'SELECT url FROM [tablename] WHERE url=?'
+		cmd = 'SELECT url FROM douban WHERE url=?'
 		#equivalent of cursor.execute(statement), return cursor.fetchall():
 		return self.db.runQuery(cmd, url)
 

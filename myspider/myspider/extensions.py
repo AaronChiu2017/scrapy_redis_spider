@@ -1,4 +1,5 @@
 #-*-coding:utf-8-*-
+from __future__ import division
 from pprint import pprint
 from scrapy import signals
 from twisted.internet import task
@@ -102,6 +103,14 @@ class MyCustomStatsExtension(object):
 		#目前是输出到终端展示出来
 		print u'将展示收集到的数据'
 		self.stats.set_value('now', datetime.now())
+		start = self.stats.get_value('memusage/startup')
+		if start:
+			self.stats.set_value('memusage/startup', round(start/1024/1024, 3))
+
+		now = self.stats.get_value('memusage/max')
+		if now:
+			self.stats.set_value('memusage/max', round(now/1024/1024, 3))
+
 		pprint(self.stats.get_stats(), depth=2)
 
 

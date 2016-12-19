@@ -17,14 +17,16 @@ class MyCustomSpiderMiddleWares(BaseAsyncMySQL):
 		return result
 
 	def insert(self, items):
+		cmd = 'INSERT INTO douban VALUES (?,?,?)'
 		try:
-			cmd = 'INSERT INTO douban VALUES (?,)'
-			return self.db.runQuery(cmd, items)
-		except Exception as e:
-			#发生异常就发送html_saved_failed信号
-			self.crawler.signals.send_catch_log(html_saved_failed, spider=spider)
+			d = self.db.runQuery(cmd, item)
+		except Exception:
+			 self.crawler.signals.send_catch_log(item_saved_failed,
+				                                 spider=spider)
 		else:
-			self.crawler.signals.send_catch_log(html_saved, spider=spider)
+			 self.crawler.signals.send_catch_log(item_saved,
+											     spider=spider)
+			 return d
 
 
 	def callback(self, value):

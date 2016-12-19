@@ -14,10 +14,10 @@ class MyCustomMySQLPipeline(BaseAsyncMySQL):
 	#所以在2.7中发送信号就使用send_catch_log()
 
 	def process_item(self, item, spider):
-		self.insert(item).addCallback(self.callback)	
+		self.insert(item, spider).addCallback(self.callback)	
 		return item
 
-	def insert(self, item):
+	def insert(self, item, spider):
 		cmd = 'INSERT INTO douban VALUES (?,?,?)'
 		try:
 			d = self.db.runQuery(cmd, item)

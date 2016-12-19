@@ -14,23 +14,23 @@ class MyCustomMySQLPipeline(BaseAsyncMySQL):
 	#所以在2.7中发送信号就使用send_catch_log()
 
 	def process_item(self, item, spider):
-		self.insert(item, spider).addCallback(self.callback)	
-		return item
-
-	def insert(self, item, spider):
-		cmd = 'INSERT INTO douban VALUES (?,?,?)'
 		try:
-			d = self.db.runQuery(cmd, item)
+			self.insert(item, spider).addCallback(self.callback)
 		except Exception:
 			 self.crawler.signals.send_catch_log(item_saved_failed,
 				                                 spider=spider)
 		else:
 			 self.crawler.signals.send_catch_log(item_saved,
 											     spider=spider)
-			 return d
+		return item
 
+	def insert(self, item):
+		cmd = 'INSERT INTO douban VALUES (?,?,?);'		
+		return self.db.runOperation(cmd, item)
+		
 	def callback(self, value):
 		self.logger.info('successfully')
+
 
 
 

@@ -13,18 +13,18 @@ class MyCustomSpiderMiddleWares(BaseAsyncMySQL):
 		#这里就可以处理一些request对象或者处理tiem
 		#process_spider_output() must return an iterable of Request, dict or Item objects.
 		items = ()		
-		self.insert(items).addCallback(self.callback)		
+		self.insert(items, spider).addCallback(self.callback)		
 		return result
 
-	def insert(self, items):
+	def insert(self, items, spider):
 		cmd = 'INSERT INTO douban VALUES (?,?,?)'
 		try:
 			d = self.db.runQuery(cmd, item)
 		except Exception:
-			 self.crawler.signals.send_catch_log(item_saved_failed,
+			 self.crawler.signals.send_catch_log(html_saved_failed,
 				                                 spider=spider)
 		else:
-			 self.crawler.signals.send_catch_log(item_saved,
+			 self.crawler.signals.send_catch_log(html_saved,
 											     spider=spider)
 			 return d
 

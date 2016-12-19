@@ -90,7 +90,7 @@ STATS_CLASS = 'scrapy.statscollectors.MemoryStatsCollector'
 # Enable or disable spider middlewares
 # See http://scrapy.readthedocs.org/en/latest/topics/spider-middleware.html
 SPIDER_MIDDLEWARES = {
-    #'myspider.spidermiddlewares.MyCustomSpiderMiddleWares': 543,
+    'myspider.spidermiddlewares.MyCustomSpiderMiddleWares': 543,
     'scrapy.spidermiddlewares.httperror.HttpErrorMiddleware': 50,
     'scrapy.spidermiddlewares.offsite.OffsiteMiddleware': 500,
     'scrapy.spidermiddlewares.referer.RefererMiddleware': 850,
@@ -185,7 +185,7 @@ ITEM_PIPELINES = {
 	#scrapy_redis管道是把提取到的item放到redis的item队列中
     #所以需要另外编写一个脚本从这个队列中获取item
     'scrapy_redis.pipelines.RedisPipeline': 300,
-    #'myspider.pipelines.MyCustomMySQLPipeline': 100,
+    'myspider.pipelines.MyCustomMySQLPipeline': 100,
     }
 
 # The item pipeline serializes and stores the items in this redis key.

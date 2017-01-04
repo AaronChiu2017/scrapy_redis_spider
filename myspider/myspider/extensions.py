@@ -1,10 +1,13 @@
 #-*-coding:utf-8-*-
 from __future__ import division
+import json
 from pprint import pprint
 from scrapy import signals
 from twisted.internet import task
+from twisted.internet import defer
 from datetime import datetime
 from . import mysignals
+from txredisapi import lazyConnectionPool
 
 class MyCustomExtension(object):
 	#结合signals, 可以使用extension来定义和收集scrapy的stats
@@ -79,38 +82,44 @@ class MyCustomStatsExtension(object):
 	"""
 	这个extension专门用来定期搜集一次stats
 	"""
-	def __init__(self, stats):
+	def __init__(self, stats, config):
+		self.config = config
 		self.stats = stats
 		self.time = 60.0
 
 	@classmethod
 	def from_crawler(cls, crawler, *args, **kwargs):
-		instance = cls(crawler.stats)
+		instance = cls(crawler.stats, crawler.settings.get('TWISTED_REDIS_CONFIG'))
 		crawler.signals.connect(instance.opened_spider, signal=signals.spider_opened)
 		crawler.signals.connect(instance.closed_spider, signal=signals.spider_closed)
 		return instance
-		
-	def opened_spider(self):
+	
+	@defer.inlineCallbacks
+	def opened_spider(self, *args, **kwargs):
+		self.rc = yield lazyConnectionPool(**self.config)
 		self.tsk = task.LoopingCall(self.collect)
 		self.tsk.start(self.time, now=True)
 
-	def closed_spider(self):		
+	@defer.inlineCallbacks
+	def closed_spider(self, *args, **kwargs):
+		yield self.rc.disconnect()		
 		if self.tsk.running:
 			self.tsk.stop()
 
+	@defer.inlineCallbacks
 	def collect(self):
-		#这里收集stats并写入相关的储存。
-		#目前是输出到终端展示出来
-		print u'将展示收集到的数据'
-		self.stats.set_value('now', datetime.now())
-		start = self.stats.get_value('memusage/startup')
-		if start:
-			self.stats.set_value('memusage/startup', round(start/1024/1024, 3))
+		#这里收集stats并写入相关的redis
+		result = self.stats.get_stats()
+		result.pop('start_time', 0)
+		start_cpu = result.get('memusage/startup')
+		if start_cpu:
+			result['memusage/startup'] = round(start_cpu/1024/1024, 3)
 
-		now = self.stats.get_value('memusage/max')
-		if now:
-			self.stats.set_value('memusage/max', round(now/1024/1024, 3))
+		max_cpu = result.get('memusage/max')
+		if max_cpu:
+			result['memusage/max'] = round(max_cpu/1024/1024, 3)
 
-		pprint(self.stats.get_stats(), depth=2)
+		yield self.rc.rpush('scrapy_stats', json.dumps(result))
+		
 
 

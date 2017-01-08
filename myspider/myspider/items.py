@@ -4,14 +4,23 @@
 #
 # See documentation in:
 # http://doc.scrapy.org/en/latest/topics/items.html
-
+import re
+from urlparse import urlparse, urljoin
 import scrapy
-from parsel import Selector
+import parsel
+from w3lib.url import canonicalize_url
 from scrapy.loader.processors import TakeFirst, Join, Compose
+from . import html
 
-#def custom_input_process(item):
-#	pass
+class RegExp(object):
+    def __init__(self):
+        self.reg = re.compile(r'[0-9]{4}-[0-9]{2}-[0-9]{2}')
 
+    def __call__(self, item):
+        result = self.reg.search(item)
+        result = result.group() if result else ''
+        return result
+        
 #def custom_output_process(item):
 #	pass
 
@@ -30,27 +39,42 @@ class MyspiderItem(scrapy.Item):
     movie_rate = scrapy.Field(input_processor=Compose(TakeFirst()),
     					  output_processor=Compose(Join()),)
 
-    movie_year = scrapy.Field(input_processor=Compose(TakeFirst()),
+    movie_year = scrapy.Field(input_processor=Compose(TakeFirst(), RegExp()),
     					  output_processor=Compose(Join()),)
 
     url = scrapy.Field(output_processor=Compose(Join()))
 
 
-class LinkLoader(object):
-	#自定义一个类，专门用来提取链接
-	#text是unicode字符串
-	def __init__(self, text, type='html'):
-		self.sel = Selector(text, type=type)
-		self.set = set()
+class LinkExtractor(object):
+    def __init__(self, allow=(), deny=(), allow_domains=()):
+        self.allow_re = [re.compile(x) for x in allow] if allow else []
+        self.deny_re = [re.compile(x) for x in deny] if deny else []
+        self.allow_domains = allow_domains
+        self.selector = parsel.Selector
 
-	def add_xpath(self, xpath, re_patten=r'.'):
-		#提取links
-		links = self.sel.xpath(xpath).re(re_patten)
-		self.set.update(links)
+    def url_allowed(self, url):
+        parsed_url = urlparse(url)
+        if parsed_url.netloc:
+            domained = [x in parsed_url.netloc for x in self.allow_domains] if self.allow_domains else [True]
+            if not any(domained):
+                return False
+        allowed = [x.search(url) for x in self.allow_re ] if self.allow_re else [True]
+        denied = [x.search(url) for x in self.deny_re] if self.deny_re else []
 
-	def get(self):
-		#得到最终的所有链接
-		return list(self.set)
+        return any(allowed) and not any(denied)
+
+    def extract_links(self, response):
+        l = []
+        base_url = response.url
+        text = html.html_to_unicode(response)
+        self.sel = self.selector(text, type='html')
+        links  = set(self.sel.xpath('//a/@href').extract())
+        links = [url for url in links if self.url_allowed(url)]
+        for url in links:
+            url = canonicalize_url(urljoin(base_url, url))
+            l.append(url)
+        else:
+            return l
 
 
 

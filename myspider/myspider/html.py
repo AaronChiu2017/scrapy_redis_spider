@@ -1,7 +1,7 @@
 #-*-coding:utf-8-*-
 import cStringIO
 from w3lib.encoding import html_body_declared_encoding, to_unicode
-from w3lib.html import get_meta_refresh
+from w3lib.html import get_meta_refresh, remove_tags, replace_escape_chars
 from chardet.universaldetector import UniversalDetector
 
 def find_response_encoding(response):
@@ -49,3 +49,8 @@ def html_to_unicode(response):
 	"""
 	encoding = find_response_encoding(response)
 	return bytes_to_unicode(response.body, encoding)
+
+
+def remove_html_tag(self, text, keep=(), remove=(), encoding='utf-8'):
+	l = remove_tags(text, keep=keep, which_ones=remove, encoding=encoding)
+	return replace_escape_chars(l)

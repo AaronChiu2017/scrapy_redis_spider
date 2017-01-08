@@ -59,10 +59,10 @@ class SQL(object):
 
 @gen.coroutine
 def main():
-    rc = redis.StrictRedis(host='59.110.160.215', password='lymlhhj123')
+    rc = redis.StrictRedis(host='localhost', password='')
     pipe = rc.pipeline()
     q = Queue()
-    db = SQL('root', 'lymlhhj123', '59.110.160.215', 'douban')
+    db = SQL('root', '', 'localhost', 'douban')
 	
     #db.table()
 	

@@ -7,7 +7,8 @@ from scrapy import signals
 from scrapy.http import Request
 from scrapy.loader import ItemLoader
 from scrapy.selector import Selector
-from scrapy.linkextractors import LinkExtractor
+from scrapy.shell import inspect_response
+from scrapy.utils.response import open_in_browser
 from scrapy_redis.spiders import RedisSpider
 from scrapy.utils.log import configure_logging
 from twisted.internet.error import DNSLookupError
@@ -15,12 +16,12 @@ from twisted.internet.error import TimeoutError
 from twisted.internet.error import TCPTimedOutError
 from scrapy.spidermiddlewares.httperror import HttpError
 from w3lib.url import canonicalize_url
-from ..items import MyspiderItem, LinkLoader
+from ..items import MyspiderItem, LinkExtractor
 from .. import html
 
 class MySpider(RedisSpider):
     """
-    在使用scrapy_redis时，初始url需要手动添加到待抓取的队列中
+    在使用scrapy_redis的spider时，初始url需要手动添加到待抓取的队列中
 
     scrapy_redis中最起码有三个队列：
     1.保存所有看过的request对象信息指纹的队列，这个队列用于去重.队列的名称为'[spider.name]:dupefilter'------->'myspider:dupefilter'
@@ -48,13 +49,16 @@ class MySpider(RedisSpider):
     redis_key = 'myspider:start_urls'
     allowed_domains = ["movie.douban.com"]
 
+    linkload = LinkExtractor(allow=(r'/subject/[0-9]+/$', r'/tag/.*'), deny=(), 
+                             allow_domains=('movie.douban.com'))
+    item_url = re.compile(r'/subject/[0-9]+/$')
+
     #这里的*args, **kwargs是通过scrapy的命令行传递的
     #命令行的指令是scrapy crawl myspider -a *args **kwargs
     #就可以通过这个命令行来动态的指定一些参数，比如allowed_domain
     def __init__(self, *args, **kwargs):
         super(MySpider, self).__init__(*args, **kwargs)
         #匹配需要提取item的url
-        self.item_url = re.compile(r'/subject/[0-9]+/$')
 
     @classmethod
     def from_crawler(cls, crawler, *args, **kwargs):
@@ -75,6 +79,12 @@ class MySpider(RedisSpider):
            return self._parse_links(response)
             
     def _extract_item(self, response):
+        #在scrapy shell中调试response
+        #inspect_response(response, self)
+
+        #在浏览器中打开scrapy接受到的response，这个适合用来查看是否登录
+        #open_in_browser(response)
+
         #提取结构化数据
         l = ItemLoader(response=response, item=MyspiderItem(), type='html')
         l.add_xpath('movie_name', '//h1/span[@property="v:itemreviewed"]/text()')
@@ -90,30 +100,8 @@ class MySpider(RedisSpider):
     def _parse_links(self, response):
         #提取网页中的链接
         #并把相对url补全为完整的url
-        l = LinkLoader(html.html_to_unicode(response))
-        l.add_xpath(xpath='//a/@href', re_patten=r'/subject/[0-9]+/$|/tag/.*')
-        #如果需要提取多个不同的规则的链接就调用多次
-        #l.add_xpath(xpath, re_patten)
-        #l.add_xpath(xpath, re_patten)
-        #最后调用get()方法就可以获取到相应的所有的链接，返回的是一个包含url的列表
-        links = l.get()
-
-        base = urlparse.urlparse(response.url)
-        domain = '://'.join((base.scheme, base.netloc))
+        links = self.linkload.extract_links(response)
         for url in links:
-            #其实下面这些部分scrapy内置link extrackor实现了
-            #也可以放到中间件中去实现将相对url补全为完整的url
-            component = urlparse.urlparse(url)
-            #这一步是去除url中的host与response的url的host不相同的url
-            #然后scrapy默认的offsite spider中间件就可以保证抓取到的不会抓取不该抓取的url
-            if (component.netloc) and (component.netloc != base.netloc):
-                continue                 
-            #这一步判断url是否为完整的url
-            if domain not in url:
-                url = urlparse.urljoin(domain, url)
-            #将url规范化,比如去除url中的#号等等
-            url = canonicalize_url(url)
-            #设置request抓取的优先级
             priority = 5 if self.item_url.search(url) else 0
             #遇到了如果没有显示的指定callback，而就单单指定一个
             #errback就会报错的情况
@@ -125,17 +113,20 @@ class MySpider(RedisSpider):
         #当下载器在下载request对象引发的错误时，就会调用这个方法
         #对于请求超时和dns解析超时的请求
         #可以将请求对象重新放到redis的优先级队列中
+     
         if failure.check(HttpError):
             #这里记录非200响应的错误
             response = failure.value.response
             self.logger.error('[%s] GET [%d]', response.url, response.status)
 
         if failure.check(DNSLookupError):
+            
             #dns查询错误
             request = failure.request
             self.logger.error('[%s] DNSLookupError', request.url)
 
         if failure.check(TimeoutError, TCPTimedOutError):
+            
             #请求超时
             request = failure.request
             self.logger.error('[%s] TimeoutError', request.url)
